@@ -4,6 +4,10 @@
 
 Build a browser-only PDF tool that makes digital PDFs look like scanned documents. The user uploads a PDF locally, adjusts scan-effect controls, sees a live preview, and exports a new PDF. Documents should never leave the browser.
 
+The project wedge is local-only processing plus a better interactive tuning experience and more convincing scan realism than simple existing converters.
+
+The app should not spoof scanner hardware metadata by default. It can identify itself as the producing app, but fake device metadata is out of scope for the MVP.
+
 ## User workflow
 
 1. Open the app.
@@ -41,7 +45,10 @@ Build a browser-only PDF tool that makes digital PDFs look like scanned document
   - JPEG quality
 - Full PDF export.
 - Export progress.
+- Visual realism spike before full benchmark work.
 - Benchmark page or command before UI polish.
+- Warning that output is rasterized and loses selectable text.
+- Output-size estimate or warning.
 
 ## Non-goals for MVP
 
@@ -49,6 +56,7 @@ Build a browser-only PDF tool that makes digital PDFs look like scanned document
 - OCR.
 - Preserving selectable text.
 - PDF form preservation.
+- Scanner metadata spoofing.
 - Batch processing multiple PDFs.
 - Mobile-first heavy optimization.
 - Native desktop app.
@@ -199,19 +207,21 @@ Potentially expensive controls:
 
 ## Benchmark-first sequence
 
-1. Scaffold the app and benchmark harness.
-2. Add PDF loading and page rendering.
-3. Add baseline preview without effects.
-4. Measure PDF render speed for fixtures.
-5. Add canvas effect function.
-6. Measure live preview latency.
-7. Move processing into workers.
-8. Measure main-thread blocking and cancellation behavior.
-9. Add PDF export.
-10. Measure export throughput and output size.
-11. Compare targeted alternatives only where data shows a bottleneck.
+1. Build the smallest visual spike: one PDF page, hardcoded canvas effects, and one exported PDF.
+2. Judge whether the scan effect is visually convincing enough to continue.
+3. Scaffold the app and lightweight benchmark harness.
+4. Add PDF loading and page rendering.
+5. Add baseline preview without effects.
+6. Measure PDF render speed for a small fixture set.
+7. Add the shared canvas effect function.
+8. Measure live preview latency.
+9. Move processing into workers only when measurements or UX show a need.
+10. Measure main-thread blocking and cancellation behavior.
+11. Add PDF export.
+12. Measure export throughput and output size.
+13. Compare targeted alternatives only where data shows a bottleneck.
 
-Do not add Rust/WASM before step 10 unless canvas processing clearly fails the live-preview targets.
+Do not add Rust/WASM before step 12 unless canvas processing clearly fails the live-preview targets.
 
 ## Milestones
 
@@ -220,13 +230,13 @@ Do not add Rust/WASM before step 10 unless canvas processing clearly fails the l
 - Vite app initialized.
 - Docs present.
 - Basic CI/build script.
-- Benchmark harness route exists.
+- Minimal visual spike exists.
 
 ### Milestone 2: PDF render baseline
 
 - User can load a PDF.
 - App renders selected page.
-- Benchmark records page render timings.
+- Initial scan effect can be inspected visually.
 
 ### Milestone 3: Live preview effects
 
@@ -235,20 +245,27 @@ Do not add Rust/WASM before step 10 unless canvas processing clearly fails the l
 - Source page render cache works.
 - Cancellable preview jobs work.
 
-### Milestone 4: Worker processing
+### Milestone 4: Benchmark harness
+
+- Benchmark harness route exists.
+- Benchmark records page render timings.
+- Benchmark records preview update timings.
+- Benchmark records output file size.
+
+### Milestone 5: Worker processing
 
 - Preview processing runs in worker where supported.
 - Export processing runs page-by-page with progress.
 - Benchmarks record long tasks and p95 latency.
 
-### Milestone 5: PDF export
+### Milestone 6: PDF export
 
 - Exported PDF has same page count.
 - Page dimensions are preserved.
 - Download works.
 - Output size is acceptable.
 
-### Milestone 6: Performance pass
+### Milestone 7: Performance pass
 
 - Run full benchmark suite.
 - Choose final render scale defaults.
@@ -264,6 +281,9 @@ Do not add Rust/WASM before step 10 unless canvas processing clearly fails the l
 - Export progress updates once per page or better.
 - Exported PDF page count matches input.
 - Exported PDF page dimensions are close to input dimensions.
+- Users are told that output is rasterized and loses selectable text.
+- Output size is shown or warned about before download when it grows significantly.
+- Output metadata does not falsely claim scanner hardware origin.
 - Benchmark results can be exported as JSON.
 
 ## Open questions
@@ -272,5 +292,4 @@ Do not add Rust/WASM before step 10 unless canvas processing clearly fails the l
 - Maximum PDF page count before showing a warning.
 - Whether image input should be supported in v1.
 - Whether preview should compare before/after side by side.
-- Whether output metadata should mimic scanner hardware.
 - Whether OCR/text layer preservation matters later.

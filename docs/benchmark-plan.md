@@ -9,6 +9,8 @@ Use measurements to answer two questions before locking the implementation:
 
 The benchmark should measure the actual user pipeline, not isolated micro-optimizations only.
 
+Do not build the full benchmark matrix before the visual spike. First prove that the scan effect can look convincing on one page. Then benchmark the smallest set of scenarios needed to choose the implementation.
+
 ## Performance targets
 
 These are initial targets. Adjust after measuring real devices.
@@ -19,8 +21,10 @@ These are initial targets. Adjust after measuring real devices.
 - Main-thread long tasks: no task over 50 ms during normal control changes.
 - Export throughput: under 1000 ms per page for common office PDFs at default quality.
 - Browser memory: avoid sustained growth across repeated preview updates.
+- Output size: warn when output is more than 5x the input size or above a configurable absolute threshold.
 
 If preview cannot hit these targets at export quality, the app should use a lower preview scale and reserve full quality for export.
+If expensive effects cannot hit live-update targets, they should update on slider release by default.
 
 ## Pipeline stages to measure
 
@@ -34,11 +38,20 @@ If preview cannot hit these targets at export quality, the app should use a lowe
 - Full export page processing.
 - PDF assembly.
 - Download blob creation.
+- Output file size growth.
 - UI responsiveness during preview and export.
 
 ## Benchmark PDFs
 
 Keep sample files in a later `benchmarks/fixtures/` directory. Use generated or permissively licensed documents.
+
+Start with three fixtures:
+
+- `text-1p.pdf`
+- `image-1p.pdf`
+- `mixed-10p.pdf`
+
+Add the larger set only after the basic pipeline exists:
 
 - `text-1p.pdf`: one page, mostly text.
 - `text-10p.pdf`: ten pages, mostly text.
@@ -154,6 +167,13 @@ Add a benchmark page or route separate from the product UI:
 
 The harness should avoid test code in product components. Shared scan/render functions should be imported by both the app and benchmarks.
 
+Build the harness incrementally:
+
+1. Manual timing logs for the visual spike.
+2. A small route that runs one PDF/config pair.
+3. JSON export after metrics are stable.
+4. Broader fixture/variant matrix only when needed.
+
 ## Live preview test
 
 Simulate real user interaction:
@@ -200,15 +220,16 @@ Use results to make these decisions:
 - Which effects should update only on slider release.
 - PDF output library choice.
 - Maximum recommended page count or warnings for large files.
+- Output quality defaults and file-size warning thresholds.
 
 ## Expected first implementation
 
 Start with:
 
 - `pdfjs-dist` for rasterization.
-- Canvas preview path with worker `OffscreenCanvas` where supported.
+- Canvas preview path on the main thread for the visual spike.
 - `pdf-lib` for output.
 - Deterministic effect function shared by preview and export.
-- Benchmark harness added before polishing UI.
+- Minimal measurements before building a full benchmark harness.
 
 Only introduce Rust/WASM after benchmark evidence shows the scan-effect stage is the bottleneck.

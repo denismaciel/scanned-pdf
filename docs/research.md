@@ -6,6 +6,14 @@ Build a browser-only tool that accepts a PDF, makes each page look like it was s
 
 The app should be interactive: users need controls for the scan effect and a near real-time preview of how the output will look before exporting.
 
+The project exists despite similar tools because it prioritizes three things together:
+
+- Local-only document handling with no uploads.
+- A better interactive tuning experience than existing simple converters.
+- More convincing visual realism, treated as a product risk rather than an afterthought.
+
+This is not intended to help documents lie about their origin. Scanner-like metadata spoofing should not be copied from reference projects by default.
+
 ## Repos inspected
 
 Research clones were placed in `/tmp/scanned-pdf-research.KS1fqW`.
@@ -25,7 +33,7 @@ Research clones were placed in `/tmp/scanned-pdf-research.KS1fqW`.
   - Magica path: ImageMagick compiled to WebAssembly through `magica-re-export`.
   - Magica command uses rotate/distort, colorspace, blur, Gaussian noise, brightness/contrast, and colorize.
 - PDF output: `pdf-lib` embeds processed PNG/JPEG page images into a new PDF, preserving physical page size from pixel dimensions and PPI.
-- Other notes: includes metadata spoofing such as Toshiba-like creator/producer strings.
+- Other notes: includes metadata spoofing such as Toshiba-like creator/producer strings. Treat this as a risk, not a feature to copy.
 
 ### domdomegg/pdf-scanner
 
@@ -40,7 +48,7 @@ Research clones were placed in `/tmp/scanned-pdf-research.KS1fqW`.
   - Applies randomized small rotation and white background containment.
   - Adds per-pixel random brightness noise.
 - PDF output: `pdfkit` in browser, with Node polyfills, emits a PDF blob from JPEG pages.
-- Other notes: sets scanner-like metadata such as `Xerox AltaLink C8045`.
+- Other notes: sets scanner-like metadata such as `Xerox AltaLink C8045`. Treat this as a risk, not a feature to copy.
 
 ### navchandar/look-like-scanned
 
@@ -79,7 +87,7 @@ Every useful implementation follows the same pipeline:
 2. Apply scan-like image degradation.
 3. Rebuild a PDF where each page is a full-page bitmap.
 
-This necessarily loses selectable text unless a later OCR/text-layer feature is added. For an MVP that is acceptable because real scans are image-based too.
+This necessarily loses selectable text unless a later OCR/text-layer feature is added. That means search, copy/paste, screen-reader behavior, and PDF accessibility degrade. The app should tell users this clearly before export.
 
 For an interactive app, split that pipeline into two paths:
 
@@ -99,8 +107,9 @@ This keeps slider/toggle feedback fast while preserving export quality.
 - Salt-and-pepper noise.
 - Random black specks, dust, and white dropout over text.
 - JPEG compression artifacts.
-- Scanner-like metadata in the output PDF.
 - Optional page border/shadow-like edge artifacts.
+
+Do not spoof scanner hardware metadata by default. Normal app metadata is acceptable; fake device metadata is a deliberate ethical/product decision and should remain out of the MVP.
 
 ## Recommended stack
 
@@ -113,6 +122,8 @@ This keeps slider/toggle feedback fast while preserving export quality.
 - Output format: JPEG by default, PNG optional for high quality.
 
 This is the smallest browser-native stack. It avoids shipping a large ImageMagick WASM payload and keeps iteration fast.
+
+Before building the full benchmark harness, build a minimal visual spike: one PDF page, hardcoded effects, and one export. The first unanswered question is whether the effect looks convincing enough to be worth optimizing.
 
 ### Interactive preview architecture
 
@@ -156,6 +167,8 @@ Rust/WASM is attractive for speed, but the hardest browser pieces are PDF render
 - Preview navigation: previous/next page and page number selector.
 - Export scanned PDF.
 - Entirely local processing.
+- Clear warning that output is rasterized and loses selectable text.
+- Output-size estimate or warning when rasterization will greatly increase file size.
 
 ## Suggested scan config
 
@@ -185,5 +198,11 @@ Use the same config for preview and export. The preview can lower render scale, 
 
 - Whether text preservation/OCR layer matters later.
 - Max PDF size/page count target.
-- Whether output should prioritize realism, small file size, or speed.
 - Whether to support images as input in addition to PDFs.
+
+## Product constraints
+
+- Visual realism is the main product risk and should be spiked before broad benchmarking.
+- Output file size is a first-class constraint. Rasterizing text PDFs can turn small files into multi-MB PDFs.
+- The app should avoid deceptive metadata by default.
+- Expensive controls may update on slider release instead of continuously if benchmarks show live updates are too slow.
