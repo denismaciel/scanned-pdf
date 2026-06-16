@@ -1,5 +1,35 @@
 import wasmUrl from './wasm/scan_wasm.wasm?url'
 
+export interface ScanConfig {
+  rotation: number
+  blur: number
+  noise: number
+  dropout: number
+  speckles: number
+  contrast: number
+  brightness: number
+  grayscale: boolean
+  tint: number
+  border: boolean
+  jpegQuality: number
+  seed: number
+}
+
+export const defaultScanConfig: ScanConfig = {
+  rotation: -0.42,
+  blur: 0.35,
+  noise: 0.07,
+  dropout: 0.0018,
+  speckles: 0.08,
+  contrast: 1.16,
+  brightness: 1.04,
+  grayscale: true,
+  tint: 0.12,
+  border: true,
+  jpegQuality: 0.78,
+  seed: 3187
+}
+
 export interface ScanResult {
   canvas: HTMLCanvasElement
   blob: Blob
@@ -30,7 +60,10 @@ interface ScanWasmExports {
 
 let wasmPromise: Promise<ScanWasmExports> | null = null
 
-export async function applyScanEffect(source: HTMLCanvasElement): Promise<ScanResult> {
+export async function applyScanEffect(
+  source: HTMLCanvasElement,
+  config: ScanConfig = defaultScanConfig
+): Promise<ScanResult> {
   const effectStarted = performance.now()
   const wasm = await getScanWasm()
   const canvas = document.createElement('canvas')
@@ -47,20 +80,20 @@ export async function applyScanEffect(source: HTMLCanvasElement): Promise<ScanRe
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   ctx.save()
   ctx.translate(canvas.width / 2, canvas.height / 2)
-  ctx.rotate((-0.42 * Math.PI) / 180)
+  ctx.rotate((config.rotation * Math.PI) / 180)
   ctx.translate(-canvas.width / 2, -canvas.height / 2)
-  ctx.filter = 'grayscale(1) contrast(1.16) brightness(1.04) sepia(0.12) blur(0.35px)'
+  ctx.filter = `blur(${config.blur}px)`
   ctx.drawImage(source, 0, 0)
   ctx.restore()
 
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-  runWasmScan(wasm, imageData.data, canvas.width, canvas.height)
+  runWasmScan(wasm, imageData.data, canvas.width, canvas.height, config)
 
   ctx.putImageData(imageData, 0, 0)
 
   const effectMs = performance.now() - effectStarted
   const encodeStarted = performance.now()
-  const blob = await canvasToBlob(canvas, 'image/jpeg', 0.78)
+  const blob = await canvasToBlob(canvas, 'image/jpeg', config.jpegQuality)
 
   return {
     canvas,
@@ -82,7 +115,8 @@ function runWasmScan(
   wasm: ScanWasmExports,
   data: Uint8ClampedArray,
   width: number,
-  height: number
+  height: number,
+  config: ScanConfig
 ) {
   const ptr = wasm.alloc_buffer(data.byteLength)
 
@@ -99,15 +133,15 @@ function runWasmScan(
       data.byteLength,
       width,
       height,
-      0.07,
-      0.0018,
-      0.08,
-      1.16,
-      1.04,
-      1,
-      0.12,
-      1,
-      3187
+      config.noise,
+      config.dropout,
+      config.speckles,
+      config.contrast,
+      config.brightness,
+      config.grayscale ? 1 : 0,
+      config.tint,
+      config.border ? 1 : 0,
+      config.seed
     )
 
     data.set(new Uint8Array(wasm.memory.buffer, ptr, data.byteLength))

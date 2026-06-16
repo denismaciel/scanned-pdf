@@ -141,6 +141,57 @@ button:disabled {
   color: #5d4d19;
 }
 
+.controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #ded9ce;
+  border-radius: 8px;
+  background: #fffefa;
+}
+
+.slider {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.slider span {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #4e4a42;
+  font-size: 14px;
+}
+
+.slider strong {
+  color: #171717;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.slider input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  accent-color: #171717;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  color: #2f2c27;
+}
+
+.toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #171717;
+}
+
 .previewGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -198,6 +249,10 @@ button:disabled {
 
   .meta {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .controls {
+    grid-template-columns: 1fr;
   }
 
   .meta button {

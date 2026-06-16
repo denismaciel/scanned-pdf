@@ -8,13 +8,14 @@ The app is now split into:
 - A Rust scan-effect core in `crates/scan-core`.
 - A Rust CLI in `crates/scan-cli`.
 - A raw WebAssembly build in `crates/scan-wasm`.
-- A Vite/React website that renders PDFs with `pdfjs-dist`, applies the Rust/WASM effect, and exports with `pdf-lib`.
+- A Vite/React website that renders PDFs with `pdfjs-dist`, applies the Rust/WASM effect with live controls, and exports with `pdf-lib`.
 
 PDF rendering still happens in the browser through `pdfjs-dist`. The Rust CLI currently processes raster images; PDF support for the CLI needs a renderer decision such as PDFium or Poppler.
 
 ## Development
 
 ```sh
+nix develop
 npm install
 npm run dev
 ```
@@ -40,3 +41,15 @@ cargo run -p scan-cli -- input.png output.png
 ```
 
 The first CLI pass supports PNG/JPEG images, not PDFs yet.
+
+## Nix
+
+The flake provides a development shell with:
+
+- Rust/Cargo
+- Node.js 22
+- `lld` for `wasm32-unknown-unknown`
+
+```sh
+nix develop
+```

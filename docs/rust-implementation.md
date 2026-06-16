@@ -24,6 +24,7 @@ Starting with the image kernel lets both frontends share behavior now while keep
   - Load PDF in browser.
   - Render page 1 with `pdfjs-dist`.
   - Apply Rust/WASM scan effect.
+  - Tune effect parameters with live controls.
   - Export one-page PDF with `pdf-lib`.
 - CLI:
   - Read PNG/JPEG.
@@ -46,6 +47,6 @@ The TypeScript bridge owns copying pixels into and out of WASM memory.
   - PDFium via `pdfium-render`.
   - Poppler via system tools or bindings.
   - MuPDF if licensing and bindings fit.
+- Package the chosen CLI PDF renderer through Nix.
 - Move preview processing into a worker once controls are live.
-- Expose the Rust `ScanConfig` through website controls.
 - Add benchmark comparison between JS effect and Rust/WASM effect.
