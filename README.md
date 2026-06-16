@@ -10,7 +10,7 @@ The app is now split into:
 - A raw WebAssembly build in `crates/scan-wasm`.
 - A Vite/React website that renders PDFs with `pdfjs-dist`, applies the Rust/WASM effect with live controls, and exports with `pdf-lib`.
 
-PDF rendering still happens in the browser through `pdfjs-dist`. The Rust CLI currently processes raster images; PDF support for the CLI needs a renderer decision such as PDFium or Poppler.
+PDF rendering still happens in the browser through `pdfjs-dist`. The Rust CLI can process raster images and can render PDF pages through either PDFium or experimental Hayro.
 
 ## Development
 
@@ -38,9 +38,16 @@ nix shell nixpkgs#lld -c cargo build -p scan-wasm --release --target wasm32-unkn
 
 ```sh
 cargo run -p scan-cli -- input.png output.png
+cargo run -p scan-cli -- input.pdf output-pages/
+cargo run -p scan-cli -- --renderer hayro input.pdf output-pages/
 ```
 
-The first CLI pass supports PNG/JPEG images, not PDFs yet.
+PDF CLI mode currently writes scanned page PNGs. PDF reassembly is next.
+
+Renderers:
+
+- `pdfium`: default, better fidelity, requires bundled/native PDFium.
+- `hayro`: pure Rust, better for single-binary distribution, experimental.
 
 ## Nix
 

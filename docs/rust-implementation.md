@@ -30,6 +30,7 @@ Starting with the image kernel lets both frontends share behavior now while keep
   - Read PNG/JPEG.
   - Apply the same Rust scan effect.
   - Write PNG/JPEG.
+  - Render PDF pages to scanned PNGs with PDFium or experimental Hayro.
 
 ## WASM ABI
 
@@ -44,9 +45,9 @@ The TypeScript bridge owns copying pixels into and out of WASM memory.
 ## Next decisions
 
 - Choose the CLI PDF renderer:
-  - PDFium via `pdfium-render`.
-  - Poppler via system tools or bindings.
-  - MuPDF if licensing and bindings fit.
-- Package the chosen CLI PDF renderer through Nix.
+  - PDFium via `pdfium-render`: current default, high fidelity, native dependency.
+  - Hayro via `hayro`: experimental, pure Rust, promising for single-binary distribution.
+- Compare PDFium and Hayro on representative PDFs.
+- Reassemble processed CLI pages into a PDF.
 - Move preview processing into a worker once controls are live.
 - Add benchmark comparison between JS effect and Rust/WASM effect.
