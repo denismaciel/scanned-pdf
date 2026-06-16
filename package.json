@@ -4,8 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "npm run build:wasm && vite",
+    "build": "npm run build:wasm && tsc -b && vite build",
+    "build:wasm": "nix shell nixpkgs#lld -c cargo build -p scan-wasm --release --target wasm32-unknown-unknown && mkdir -p src/wasm && cp target/wasm32-unknown-unknown/release/scan_wasm.wasm src/wasm/scan_wasm.wasm",
+    "cli": "cargo run -p scan-cli --",
     "preview": "vite preview"
   },
   "dependencies": {

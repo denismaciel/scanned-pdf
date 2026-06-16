@@ -1,3 +1,5 @@
+import wasmUrl from './wasm/scan_wasm.wasm?url'
+
 export interface ScanResult {
   canvas: HTMLCanvasElement
   blob: Blob
@@ -5,8 +7,32 @@ export interface ScanResult {
   encodeMs: number
 }
 
+interface ScanWasmExports {
+  memory: WebAssembly.Memory
+  alloc_buffer(len: number): number
+  dealloc_buffer(ptr: number, len: number): void
+  apply_scan_effect(
+    ptr: number,
+    len: number,
+    width: number,
+    height: number,
+    noise: number,
+    dropout: number,
+    speckles: number,
+    contrast: number,
+    brightness: number,
+    grayscale: number,
+    tint: number,
+    border: number,
+    seed: number
+  ): void
+}
+
+let wasmPromise: Promise<ScanWasmExports> | null = null
+
 export async function applyScanEffect(source: HTMLCanvasElement): Promise<ScanResult> {
   const effectStarted = performance.now()
+  const wasm = await getScanWasm()
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d', { alpha: false })
 
@@ -28,26 +54,9 @@ export async function applyScanEffect(source: HTMLCanvasElement): Promise<ScanRe
   ctx.restore()
 
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-  const data = imageData.data
-  const rand = seededRandom(3187)
-
-  for (let i = 0; i < data.length; i += 4) {
-    const noise = Math.floor((rand() - 0.5) * 18)
-    const dropout = rand() < 0.0018 ? 38 : 0
-    const dust = rand() < 0.0009 ? -75 : 0
-
-    data[i] = clamp(data[i] + noise + dropout + dust)
-    data[i + 1] = clamp(data[i + 1] + noise + dropout + dust)
-    data[i + 2] = clamp(data[i + 2] + noise + dropout + dust)
-    data[i + 3] = 255
-  }
+  runWasmScan(wasm, imageData.data, canvas.width, canvas.height)
 
   ctx.putImageData(imageData, 0, 0)
-  addSpeckles(ctx, canvas.width, canvas.height, rand)
-
-  ctx.strokeStyle = 'rgba(31, 29, 24, 0.34)'
-  ctx.lineWidth = 1
-  ctx.strokeRect(0.5, 0.5, canvas.width - 1, canvas.height - 1)
 
   const effectMs = performance.now() - effectStarted
   const encodeStarted = performance.now()
@@ -61,26 +70,50 @@ export async function applyScanEffect(source: HTMLCanvasElement): Promise<ScanRe
   }
 }
 
-function addSpeckles(
-  ctx: CanvasRenderingContext2D,
+async function getScanWasm(): Promise<ScanWasmExports> {
+  wasmPromise ??= WebAssembly.instantiateStreaming(fetch(wasmUrl), {}).then((result) => {
+    return result.instance.exports as unknown as ScanWasmExports
+  })
+
+  return wasmPromise
+}
+
+function runWasmScan(
+  wasm: ScanWasmExports,
+  data: Uint8ClampedArray,
   width: number,
-  height: number,
-  rand: () => number
+  height: number
 ) {
-  const count = Math.max(12, Math.floor((width * height) / 110000))
+  const ptr = wasm.alloc_buffer(data.byteLength)
 
-  ctx.save()
-  ctx.globalCompositeOperation = 'multiply'
-
-  for (let i = 0; i < count; i++) {
-    const radius = 0.5 + rand() * 1.7
-    ctx.fillStyle = `rgba(24, 22, 18, ${0.08 + rand() * 0.18})`
-    ctx.beginPath()
-    ctx.ellipse(rand() * width, rand() * height, radius, radius * (0.5 + rand()), 0, 0, Math.PI * 2)
-    ctx.fill()
+  if (!ptr) {
+    throw new Error('WASM allocation failed')
   }
 
-  ctx.restore()
+  try {
+    const input = new Uint8Array(wasm.memory.buffer, ptr, data.byteLength)
+    input.set(data)
+
+    wasm.apply_scan_effect(
+      ptr,
+      data.byteLength,
+      width,
+      height,
+      0.07,
+      0.0018,
+      0.08,
+      1.16,
+      1.04,
+      1,
+      0.12,
+      1,
+      3187
+    )
+
+    data.set(new Uint8Array(wasm.memory.buffer, ptr, data.byteLength))
+  } finally {
+    wasm.dealloc_buffer(ptr, data.byteLength)
+  }
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob> {
@@ -94,20 +127,4 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
       quality
     )
   })
-}
-
-function clamp(value: number): number {
-  return Math.max(0, Math.min(255, value))
-}
-
-function seededRandom(seed: number): () => number {
-  let state = seed >>> 0
-
-  return () => {
-    state += 0x6d2b79f5
-    let next = state
-    next = Math.imul(next ^ (next >>> 15), next | 1)
-    next ^= next + Math.imul(next ^ (next >>> 7), next | 61)
-    return ((next ^ (next >>> 14)) >>> 0) / 4294967296
-  }
 }

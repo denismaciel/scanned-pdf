@@ -1,5 +1,7 @@
 node_modules/
 dist/
+target/
+src/wasm/*.wasm
 .DS_Store
 *.local
 *.tsbuildinfo
