@@ -4,6 +4,8 @@
 
 Build a browser-only tool that accepts a PDF, makes each page look like it was scanned, and exports a new PDF without uploading the document.
 
+The app should be interactive: users need controls for the scan effect and a near real-time preview of how the output will look before exporting.
+
 ## Repos inspected
 
 Research clones were placed in `/tmp/scanned-pdf-research.KS1fqW`.
@@ -79,6 +81,13 @@ Every useful implementation follows the same pipeline:
 
 This necessarily loses selectable text unless a later OCR/text-layer feature is added. For an MVP that is acceptable because real scans are image-based too.
 
+For an interactive app, split that pipeline into two paths:
+
+1. Preview path: render one selected page at preview resolution, apply effects immediately as settings change, and display the result.
+2. Export path: render every page at output resolution, apply the final settings, and assemble the PDF.
+
+This keeps slider/toggle feedback fast while preserving export quality.
+
 ## Scan-look techniques
 
 - Small random rotation/skew per page.
@@ -105,6 +114,24 @@ This necessarily loses selectable text unless a later OCR/text-layer feature is 
 
 This is the smallest browser-native stack. It avoids shipping a large ImageMagick WASM payload and keeps iteration fast.
 
+### Interactive preview architecture
+
+- Load PDF once and keep the `pdfjs-dist` document object alive.
+- Render and cache source page bitmaps separately from processed scan previews.
+- Use two render scales:
+  - Preview scale: smaller and fast, for live control feedback.
+  - Export scale: higher quality, only used when exporting.
+- Keep scan settings in one serializable config object.
+- Debounce slider changes by about 50-150 ms.
+- Cancel stale preview jobs when newer settings arrive.
+- Process preview pages in a worker where possible, with `OffscreenCanvas`.
+- Use a deterministic random seed per page so the preview matches export for the same settings.
+- Reprocess only the selected preview page during editing.
+- Process all pages only after the user clicks export.
+- Show export progress page-by-page.
+
+The key implementation detail is separating `source page render cache` from `effect output cache`. Changing contrast/noise/rotation should not require re-parsing or re-rendering the PDF page from scratch unless the render scale changes.
+
 ### Performance path
 
 Use Rust/WASM only for the pixel-processing kernel after the MVP proves the UX and effect model:
@@ -113,6 +140,7 @@ Use Rust/WASM only for the pixel-processing kernel after the MVP proves the UX a
 - Keep `pdf-lib` or evaluate a Rust PDF writer later. PDF assembly is not the bottleneck compared with rasterization and effects.
 - Add Rust/WASM for deterministic per-pixel operations: noise, thresholding, contrast curves, dropout, vignettes, paper texture blending.
 - Run page processing in web workers to keep the UI responsive.
+- If Rust/WASM is added, expose one pure function like `apply_scan_effect(image_data, config, seed)` and keep PDF rendering/building in JS.
 
 ### Why not Rust-first
 
@@ -121,11 +149,37 @@ Rust/WASM is attractive for speed, but the hardest browser pieces are PDF render
 ## Proposed MVP features
 
 - Drag/drop PDF.
-- Page preview before export.
+- Page preview before export with live updates as controls change.
 - Presets: subtle scan, office scanner, photocopy, degraded fax.
 - Controls: rotation, rotation variance, blur, noise, contrast, brightness, grayscale, paper warmth, JPEG quality.
+- Toggles: grayscale, border, paper tint, speckles, text dropout, compression artifacts.
+- Preview navigation: previous/next page and page number selector.
 - Export scanned PDF.
 - Entirely local processing.
+
+## Suggested scan config
+
+```ts
+interface ScanConfig {
+  preset: 'subtle' | 'office' | 'photocopy' | 'fax' | 'custom'
+  grayscale: boolean
+  border: boolean
+  paperTint: number
+  rotation: number
+  rotationVariance: number
+  blur: number
+  unevenBlur: number
+  noise: number
+  speckles: number
+  dropout: number
+  contrast: number
+  brightness: number
+  jpegQuality: number
+  seed: number
+}
+```
+
+Use the same config for preview and export. The preview can lower render scale, but the effect function should behave the same.
 
 ## Open implementation questions
 
