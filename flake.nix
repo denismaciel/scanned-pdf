@@ -17,10 +17,12 @@
             pkgs.cargo
             pkgs.lld
             pkgs.nodejs_22
+            pkgs.pdfium-binaries
             pkgs.rustc
           ];
 
           shellHook = ''
+            export LD_LIBRARY_PATH="${pkgs.pdfium-binaries}/lib:$LD_LIBRARY_PATH"
             echo "scanned-pdf dev shell"
             echo "  npm install"
             echo "  npm run dev"
